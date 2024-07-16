@@ -1,0 +1,10 @@
+joblib
+pandas
+numpy
+matplotlib
+torch
+torchvision
+torchaudio
+tqdm
+scikit-learn
+rdkit
