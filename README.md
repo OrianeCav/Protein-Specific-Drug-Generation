@@ -12,10 +12,4 @@ For existing LLMs, my first choice was to use [ProtBert](https://huggingface.co/
 Both models were trained for only 2 epochs, as the dataset size is substantial, and this was sufficient to achieve promising results.
 To evaluate the models, each element of each sequence is compared to assess the accuracy of the models.
 
-**Summary of the models performances:**
-| Performance metrics  | Transformer | Fine tuned ProtBert  |
-| ------------- | ------------- | ------------- |
-| Accuracy  | 0.99999915  | 0.99999872  |
-| F1 score  | 0.99999915  | 0.99999881  |
-
 The models seem to learn very quickly and reach very high accuracy on the test set. The inferred sequence would need to be further analyzed though, to study the chemical feasibility, the binding affinity (taking into account technical limitations) and the toxicity.
