@@ -1,0 +1,10 @@
+# Environment
+.venv/
+__pycache__/
+*.pyc
+
+# Data (too large for git)
+data/
+
+# OS
+.DS_Store
