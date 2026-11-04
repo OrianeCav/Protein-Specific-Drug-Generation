@@ -114,6 +114,7 @@ The model correctly learns drug-like prefixes (methyl groups, ring starters, ami
 ## Potential next steps
 
 - **Sampling strategies**: Replace greedy decoding with temperature or nucleus (top-p) sampling to address mode collapse and improve output diversity.
+- **Scheduled sampling**: Training uses teacher forcing, which creates a mismatch with auto-regressive inference ("exposure bias"). Scheduled sampling (Bengio et al., 2015) gradually shifts from feeding ground-truth tokens to the model's own predictions during training, which could improve generation quality especially for longer SMILES sequences.
 - **SMILES validity filtering**: Post-process generated sequences with RDKit and re-sample invalid ones.
 - **Drug-likeness metrics**: Evaluate generated molecules on QED (quantitative estimate of drug-likeness) and SA score (synthetic accessibility), not just SMILES validity.
 - **More training**: The val loss (0.872) is still well above 0.5, and the model shows no sign of overfitting (train–val gap is small). Additional epochs or a larger architecture (`d_model=256`, more layers) would likely improve both validity and diversity, though larger models were not explored here due to GPU memory and compute constraints on free-tier Colab (single T4).
