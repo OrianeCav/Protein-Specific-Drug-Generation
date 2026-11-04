@@ -9,9 +9,9 @@ The data used is the same as in the referenced paper: BindingDB, which contains 
 
 Different model architectures capable of understanding sequence-like data were trained and compared on a test set. The dataset consists of 337,459 protein–SMILES pairs from BindingDB; each model was trained on a subset (see architecture details below).
 
-### Transformer (trained from scratch)
+### Transformer-based model (trained from scratch)
 
-An encoder-decoder transformer with the following architecture was trained from scratch:
+An encoder-decoder transformer based model was trained from scratch, on ~168K pairs (half of the dataset). Training ran for **5 epochs** (~3h 15min on a T4 GPU). The architecture of the model was:
 
 | Hyperparameter | Value |
 |---|---|
@@ -24,8 +24,6 @@ An encoder-decoder transformer with the following architecture was trained from 
 | Parameters | 687,295 |
 | Optimizer | Adam (lr=1e-4) |
 | Batch size | 16 (dynamic padding) |
-
-Training used **dynamic per-batch padding** (each batch padded to its own max length) on ~168K pairs (1/6 of the dataset). Training ran for **5 epochs** (~3h 15min on a T4 GPU, 105,455 total steps).
 
 **Training loss curve:**
 
@@ -46,6 +44,7 @@ Training used **dynamic per-batch padding** (each batch padded to its own max le
 | SMILES validity (RDKit) | 46.2% | 57.0% |
 | Exact match | 0% | 0% |
 
+"TF" stands for teacher-forcing.
 SMILES validity measures the fraction of generated sequences that parse as chemically valid molecules according to RDKit. The ground-truth sequences are 100% valid. Exact match is 0% as expected for this open-ended generation task.
 
 **Qualitative observations:** The model generates drug-like scaffolds such as biaryl amides, piperidine/piperazine-containing compounds, and heteroaromatic kinase inhibitor-like structures. Remaining failure modes include occasional degenerate outputs (long alkane chains) and mode collapse under greedy decoding (the same scaffold generated for multiple different protein inputs).
@@ -54,9 +53,9 @@ SMILES validity measures the fraction of generated sequences that parse as chemi
 
 ### ProtBERT
 
-[ProtBert](https://huggingface.co/Rostlab/prot_bert) from the HuggingFace library was used as the encoder. It is specifically pre-trained on amino acid sequences in a self-supervised fashion (masked token prediction). An attention-based decoder was added; in the first iteration only the decoder weights were trained while the ProtBERT encoder was frozen (420M frozen parameters).
+[ProtBert](https://huggingface.co/Rostlab/prot_bert) from the HuggingFace library was used as the encoder. It is specifically pre-trained on amino acid sequences in a self-supervised fashion (masked token prediction). An attention-based decoder was added, and only the decoder weights were trained while the ProtBERT encoder was frozen (420M frozen parameters).
 
-**Architecture (v2):**
+**Architecture:**
 
 | Hyperparameter | Value |
 |---|---|
