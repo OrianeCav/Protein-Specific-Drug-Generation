@@ -7,7 +7,7 @@ The data used is the same as in the referenced paper: BindingDB, which contains 
 
 ## Models and results
 
-Different model architectures capable of understanding sequence-like data were trained and compared on a test set. The models were trained on the full dataset of 337,459 protein–SMILES pairs from BindingDB.
+Different model architectures capable of understanding sequence-like data were trained and compared on a test set. The dataset consists of 337,459 protein–SMILES pairs from BindingDB; each model was trained on a subset (see architecture details below).
 
 ### Transformer (trained from scratch)
 
@@ -25,9 +25,7 @@ An encoder-decoder transformer with the following architecture was trained from 
 | Optimizer | Adam (lr=1e-4) |
 | Batch size | 16 (dynamic padding) |
 
-Training used **dynamic per-batch padding** (each batch padded to its own max length) rather than global padding, which reduced peak memory from ~6 GB to ~2 GB and allowed training on the full dataset on a single T4 GPU. A critical fix over earlier implementations was the **shifted-target objective**: the decoder input is `tgt[:-1]` (SOS..t_{L−1}) and the loss target is `tgt[1:]` (t_1..EOS). Without this shift, causal self-attention allows the model to trivially copy each input token, producing zero autoregressive accuracy regardless of loss.
-
-Training ran for **5 epochs** (~3h 15min on a T4 GPU, 105,455 total steps).
+Training used **dynamic per-batch padding** (each batch padded to its own max length) on ~168K pairs (1/6 of the dataset). Training ran for **5 epochs** (~3h 15min on a T4 GPU, 105,455 total steps).
 
 **Training loss curve:**
 
@@ -73,7 +71,7 @@ The training experiment is tracked at: https://wandb.ai/oriane-cavrois/protein-d
 | Batch size | 64 (dynamic padding) |
 | Subsample | 1/12 of data (~28K pairs) |
 
-Two critical fixes were applied over an initial v1 implementation: (1) the **shifted-target objective** (same as the scratch transformer — decoder input `tgt[:-1]`, loss target `tgt[1:]`); (2) **proper ProtBERT tokenization** — protein sequences are re-encoded per batch using `BertTokenizer` with space-separated amino acids, rather than the custom symb2index vocabulary. A key architectural fix was increasing `d_ff` from 48 to 512 — the original 1024→48→1024 bottleneck caused complete mode collapse regardless of other settings.
+An interesting finding from this experiment: a small `d_ff` value creates a severe FFN bottleneck (1024→48→1024) that causes complete mode collapse — the model generates the same degenerate sequence for every input, regardless of training duration or other hyperparameters. Increasing `d_ff` to 512 resolved this entirely and yielded a ~51% reduction in loss compared to the bottlenecked configuration.
 
 Training ran for **5 epochs** (~75 min/epoch on a T4 GPU, ~6.25h total, 439 batches/epoch).
 
@@ -87,19 +85,29 @@ Training ran for **5 epochs** (~75 min/epoch on a T4 GPU, ~6.25h total, 439 batc
 | 4 | ~1.253 |
 | 5 | **1.253** |
 
-V1 (d_ff=48) plateau: ~2.54 across all epochs. The d_ff fix alone yielded a **~51% loss reduction**.
-
-The training experiment is tracked at: https://wandb.ai/oriane-cavrois/Protein-Specific-Drug-Generation
+V1 (d_ff=48) plateau: ~2.54 across all epochs.
 
 **Qualitative inference results (greedy decoding, 5 test examples):**
 
-Mode collapse was fully resolved — the model generates diverse SMILES with valid drug-like fragments (e.g. `CC(C)(C)`, `CC(=O)N1CC`, `CC(C)C[C@H]1`). However, greedy decoding causes repetitive carbon-chain runoff after ~20 tokens. This is a known decoding artifact: the most probable continuation at each step drifts toward simple carbon chains. Temperature or nucleus (top-p) sampling is expected to resolve this.
+Mode collapse was fully resolved — the model generates diverse SMILES with valid drug-like fragments. However, greedy decoding causes repetitive carbon-chain runoff after ~20 tokens; temperature or nucleus (top-p) sampling is expected to resolve this.
 
 | Metric | Value |
 |---|---|
 | Mode collapse | None (resolved) |
 | Char overlap (greedy) | 10–24% |
 | Drug-like prefix generation | Yes |
+
+Selected examples (protein input truncated to first 40 aa):
+
+| Protein (40aa) | Ground truth SMILES | Generated SMILES |
+|---|---|---|
+| `MKHQHQHQHQ...` | `CC(C)(C)c1ccc(cc1)S(=O)(=O)N1CCCN(CC1)c1ncccc1C(F)(F)F` | `CC(C)(C)(C)(CCCCCCCCCCCCCCC...` |
+| `MEVQLGLGRV...` | `CCCCN(CC(F)(F)F)c1ccc2[nH]c(=O)cc(c2c1)C(F)(F)F` | `CC(C)C[C@H]1(CCCCCCCCCCCCCC...` |
+| `MQYLNIKEDC...` | `CCc1cc(O)c(F)cc1-c1ccc2c(n[nH]c2c1)-c1nc2CN(CCc2[nH]1)C(=O)...` | `CC(C)(C)(CC(=O)N1CC(=O)c2cc...` |
+| `MLRAAARFGP...` | `CS(=O)(=O)Nc1ccc(cc1)-c1coc2cc(ccc2c1=O)C#CC1CN(C1)C(=O)OC1CCCC1` | `CC(=O)C(=O)N1CCCCCCCCCCCCCC...` |
+| `MAQKENSYPW...` | `COc1cc(ccn1)C(=O)NC1=CCCC(=C1)C(C)Nc1ncnc2c(cccc12)C(N)=O` | `CC(C)(C)CC(=O)Nc1ccccccccccc...` |
+
+The model correctly learns drug-like prefixes (methyl groups, ring starters, amide bonds) but then collapses into long carbon chains under greedy decoding.
 
 ---
 
