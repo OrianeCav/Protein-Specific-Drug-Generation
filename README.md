@@ -52,7 +52,7 @@ SMILES validity measures the fraction of generated sequences that parse as chemi
 
 ![Transformer training loss curve](assets/transformer_training_loss.png)
 
-### ProtBERT (encoder fine-tuning)
+### ProtBERT
 
 [ProtBert](https://huggingface.co/Rostlab/prot_bert) from the HuggingFace library was used as the encoder. It is specifically pre-trained on amino acid sequences in a self-supervised fashion (masked token prediction). An attention-based decoder was added; in the first iteration only the decoder weights were trained while the ProtBERT encoder was frozen (420M frozen parameters).
 
@@ -69,9 +69,9 @@ SMILES validity measures the fraction of generated sequences that parse as chemi
 | Trainable params | ~6.3M (decoder only) |
 | Optimizer | Adam (lr=1e-3) |
 | Batch size | 64 (dynamic padding) |
-| Subsample | 1/12 of data (~28K pairs) |
+| Subsample | 1/12 of full data (~28K pairs; ~6× less than the scratch transformer) |
 
-An interesting finding from this experiment: a small `d_ff` value creates a severe FFN bottleneck (1024→48→1024) that causes complete mode collapse — the model generates the same degenerate sequence for every input, regardless of training duration or other hyperparameters. Increasing `d_ff` to 512 resolved this entirely and yielded a ~51% reduction in loss compared to the bottlenecked configuration.
+An interesting finding from this experiment: a small `d_ff` value creates a severe FFN bottleneck (1024→48→1024) that causes complete mode collapse. `d_ff` controls the hidden dimension of the two-layer feed-forward network applied independently at each position in every decoder layer (`d_model → d_ff → d_model`); it sets the capacity of the per-position transformation between attention sublayers. — the model generates the same degenerate sequence for every input, regardless of training duration or other hyperparameters. Increasing `d_ff` to 512 resolved this entirely and yielded a ~51% reduction in loss compared to the bottlenecked configuration.
 
 Training ran for **5 epochs** (~75 min/epoch on a T4 GPU, ~6.25h total, 439 batches/epoch).
 
@@ -84,6 +84,8 @@ Training ran for **5 epochs** (~75 min/epoch on a T4 GPU, ~6.25h total, 439 batc
 | 3 | 1.265 | ~56% |
 | 4 | ~1.253 | ~56% |
 | 5 | **1.253** | ~56% |
+
+The model learned very quickly: loss dropped from ~2.3 to ~1.53 within the first epoch, then plateaued almost entirely for epochs 2–5. This fast initial convergence is likely due to ProtBERT's strong pre-trained protein representations bootstrapping the decoder; however, the early plateau also suggests the decoder capacity or training data was the binding constraint.
 
 ![ProtBERT v2 training loss](assets/prot_bert_v2_training_loss.png)
 
@@ -126,7 +128,7 @@ SMILES validity is very low because greedy decoding reliably collapses into repe
 
 Both models were evaluated with teacher-forced (TF) loss and accuracy on the full held-out splits, and SMILES validity via RDKit on 200 greedy-decoded samples per split.
 
-| Metric | Transformer (scratch) | ProtBERT v2 |
+| Metric | Transformer (scratch) | ProtBERT-based model |
 |---|---|---|
 | Trainable params | 687K | ~6.3M decoder (+420M frozen) |
 | Training pairs | ~168K | ~28K |
@@ -138,13 +140,13 @@ Both models were evaluated with teacher-forced (TF) loss and accuracy on the ful
 | Test SMILES validity | **57.0%** | 9.0% |
 | Exact match | 0% | 0% |
 
-**Conclusion:** The scratch transformer outperforms ProtBERT v2 on every metric by a large margin. The most striking gap is in SMILES validity: 46–57% vs 7–9%. The main contributing factors are:
+**Conclusion:** The scratch transformer outperforms the ProtBERT-based model on every metric by a large margin. The most striking gap is in SMILES validity: 46–57% vs 7–9%. The main contributing factors are:
 
-1. **Training data volume**: the scratch transformer saw 6× more pairs (168K vs 28K). ProtBERT v2 was trained on a 1/12 subsample, which is not enough for the decoder to learn reliable SMILES generation.
-2. **Greedy decoding runoff**: ProtBERT v2's higher TF loss (~1.4 vs 0.87) reflects weaker next-token calibration — greedy decoding almost always hits the 120-token ceiling with an unclosed ring, failing RDKit validation.
+1. **Training data volume**: the scratch transformer saw 6× more pairs (168K vs 28K). The ProtBERT-based model was trained on a 1/12 subsample, which is not enough for the decoder to learn reliable SMILES generation.
+2. **Greedy decoding runoff**: the ProtBERT-based model's higher TF loss (~1.4 vs 0.87) reflects weaker next-token calibration — greedy decoding almost always hits the 120-token ceiling with an unclosed ring, failing RDKit validation.
 3. **Task mismatch**: ProtBERT's representations are not fine-tuned for drug generation (encoder is frozen), so the decoder must bridge a larger representational gap.
 
-The scratch transformer result suggests that training data volume matters more than encoder quality at this scale under greedy decoding. ProtBERT v2 would likely close the gap with more training data and nucleus or beam-search decoding.
+The scratch transformer result suggests that training data volume matters more than encoder quality at this scale under greedy decoding. The ProtBERT-based model would likely close the gap with more training data and nucleus or beam-search decoding.
 
 ---
 
