@@ -94,7 +94,6 @@ The model generates diverse SMILES with valid drug-like fragments. However, gree
 
 | Metric | Value |
 |---|---|
-| Mode collapse | None (resolved) |
 | Char overlap (greedy) | 10–24% |
 | Drug-like prefix generation | Yes |
 
