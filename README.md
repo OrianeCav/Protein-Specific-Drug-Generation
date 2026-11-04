@@ -77,13 +77,13 @@ Training ran for **5 epochs** (~75 min/epoch on a T4 GPU, ~6.25h total, 439 batc
 
 **Training loss curve:**
 
-| Epoch | Avg Loss |
-|---|---|
-| 1 | 1.527 |
-| 2 | ~1.26 |
-| 3 | 1.265 |
-| 4 | ~1.253 |
-| 5 | **1.253** |
+| Epoch | Avg Loss | TF Accuracy |
+|---|---|---|
+| 1 | 1.527 | ~50% |
+| 2 | ~1.26 | ~55% |
+| 3 | 1.265 | ~56% |
+| 4 | ~1.253 | ~56% |
+| 5 | **1.253** | ~56% |
 
 ![ProtBERT v2 training loss](assets/prot_bert_v2_training_loss.png)
 
