@@ -71,7 +71,7 @@ SMILES validity measures the fraction of generated sequences that parse as chemi
 | Batch size | 64 (dynamic padding) |
 | Subsample | 1/12 of full data (~28K pairs; ~6× less than the scratch transformer) |
 
-An interesting finding from this experiment: a small `d_ff` value creates a severe FFN bottleneck (1024→48→1024) that causes complete mode collapse. `d_ff` controls the hidden dimension of the two-layer feed-forward network applied independently at each position in every decoder layer (`d_model → d_ff → d_model`); it sets the capacity of the per-position transformation between attention sublayers. — the model generates the same degenerate sequence for every input, regardless of training duration or other hyperparameters. Increasing `d_ff` to 512 resolved this entirely and yielded a ~51% reduction in loss compared to the bottlenecked configuration.
+An interesting finding from this experiment: a small `d_ff` value creates a severe FFN bottleneck (1024→48→1024) that causes complete mode collapse, the model generated the same sequence for every input, regardless of training duration or other hyperparameters. `d_ff` controls the hidden dimension of the two-layer feed-forward network applied independently at each position in every decoder layer (`d_model → d_ff → d_model`); it sets the capacity of the per-position transformation between attention sublayers. Increasing `d_ff` to 512 resolved this entirely and yielded a ~51% reduction in loss compared to the bottlenecked configuration.
 
 Training ran for **5 epochs** (~75 min/epoch on a T4 GPU, ~6.25h total, 439 batches/epoch).
 
@@ -91,7 +91,7 @@ The model learned very quickly: loss dropped from ~2.3 to ~1.53 within the first
 
 **Qualitative inference results (greedy decoding, 5 test examples):**
 
-Mode collapse was fully resolved — the model generates diverse SMILES with valid drug-like fragments. However, greedy decoding causes repetitive carbon-chain runoff after ~20 tokens; temperature or nucleus (top-p) sampling is expected to resolve this.
+The model generates diverse SMILES with valid drug-like fragments. However, greedy decoding causes repetitive carbon-chain runoff after ~20 tokens; temperature or nucleus (top-p) sampling is expected to resolve this.
 
 | Metric | Value |
 |---|---|
@@ -128,7 +128,7 @@ SMILES validity is very low because greedy decoding reliably collapses into repe
 
 Both models were evaluated with teacher-forced (TF) loss and accuracy on the full held-out splits, and SMILES validity via RDKit on 200 greedy-decoded samples per split.
 
-| Metric | Transformer (scratch) | ProtBERT-based model |
+| Metric | Transformer-based model (from scratch) | ProtBERT-based model |
 |---|---|---|
 | Trainable params | 687K | ~6.3M decoder (+420M frozen) |
 | Training pairs | ~168K | ~28K |
@@ -143,7 +143,7 @@ Both models were evaluated with teacher-forced (TF) loss and accuracy on the ful
 **Conclusion:** The scratch transformer outperforms the ProtBERT-based model on every metric by a large margin. The most striking gap is in SMILES validity: 46–57% vs 7–9%. The main contributing factors are:
 
 1. **Training data volume**: the scratch transformer saw 6× more pairs (168K vs 28K). The ProtBERT-based model was trained on a 1/12 subsample, which is not enough for the decoder to learn reliable SMILES generation.
-2. **Greedy decoding runoff**: the ProtBERT-based model's higher TF loss (~1.4 vs 0.87) reflects weaker next-token calibration — greedy decoding almost always hits the 120-token ceiling with an unclosed ring, failing RDKit validation.
+2. **Weaker token calibration**: both models use greedy decoding, but the ProtBERT-based model's higher TF loss (~1.4 vs 0.87) reflects poorer next-token calibration. In particular, it fails to predict EOS reliably, so decoding almost always hits the 120-token ceiling with an unclosed ring, failing RDKit validation.
 3. **Task mismatch**: ProtBERT's representations are not fine-tuned for drug generation (encoder is frozen), so the decoder must bridge a larger representational gap.
 
 The scratch transformer result suggests that training data volume matters more than encoder quality at this scale under greedy decoding. The ProtBERT-based model would likely close the gap with more training data and nucleus or beam-search decoding.
@@ -154,8 +154,8 @@ The scratch transformer result suggests that training data volume matters more t
 
 - **Sampling strategies**: Replace greedy decoding with temperature or nucleus (top-p) sampling to address mode collapse and improve output diversity.
 - **Scheduled sampling**: Training uses teacher forcing, which creates a mismatch with auto-regressive inference ("exposure bias"). Scheduled sampling (Bengio et al., 2015) gradually shifts from feeding ground-truth tokens to the model's own predictions during training, which could improve generation quality especially for longer SMILES sequences.
-- **SMILES validity filtering**: Post-process generated sequences with RDKit and re-sample invalid ones.
-- **Drug-likeness metrics**: Evaluate generated molecules on QED (quantitative estimate of drug-likeness) and SA score (synthetic accessibility), not just SMILES validity.
 - **More training**: The val loss (0.872) is still well above 0.5, and the model shows no sign of overfitting (train–val gap is small). Additional epochs or a larger architecture (`d_model=256`, more layers) would likely improve both validity and diversity, though larger models were not explored here due to GPU memory and compute constraints on free-tier Colab (single T4).
 - **ProtBERT fine-tuning**: Unfreeze the ProtBERT encoder and fine-tune end-to-end, which should produce better protein representations and improve conditioning.
+- **SMILES validity filtering**: Post-process generated sequences with RDKit and re-sample invalid ones.
+- **Drug-likeness metrics**: Evaluate generated molecules on QED (quantitative estimate of drug-likeness) and SA score (synthetic accessibility), not just SMILES validity.
 - **Binding affinity evaluation**: Use docking software (e.g. AutoDock Vina) or a pre-trained affinity predictor to assess whether generated molecules are actually predicted to bind the input protein.
