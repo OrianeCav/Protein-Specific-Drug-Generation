@@ -109,6 +109,43 @@ Selected examples (protein input truncated to first 40 aa):
 
 The model correctly learns drug-like prefixes (methyl groups, ring starters, amide bonds) but then collapses into long carbon chains under greedy decoding.
 
+**Held-out evaluation (greedy decoding):**
+
+| Metric | Validation | Test |
+|---|---|---|
+| TF loss | 1.407 | 1.368 |
+| TF accuracy | 52.2% | 53.5% |
+| SMILES validity (RDKit) | 7.5% | 9.0% |
+| Exact match | 0% | 0% |
+
+SMILES validity is very low because greedy decoding reliably collapses into repetitive `c` tokens after a valid drug-like prefix, producing unclosed rings that RDKit cannot parse. Temperature or nucleus sampling is expected to substantially improve this.
+
+---
+
+## Model comparison
+
+Both models were evaluated with teacher-forced (TF) loss and accuracy on the full held-out splits, and SMILES validity via RDKit on 200 greedy-decoded samples per split.
+
+| Metric | Transformer (scratch) | ProtBERT v2 |
+|---|---|---|
+| Trainable params | 687K | ~6.3M decoder (+420M frozen) |
+| Training pairs | ~168K | ~28K |
+| Val TF loss | **0.872** | 1.407 |
+| Test TF loss | **0.829** | 1.368 |
+| Val TF accuracy | **69.8%** | 52.2% |
+| Test TF accuracy | **70.9%** | 53.5% |
+| Val SMILES validity | **46.2%** | 7.5% |
+| Test SMILES validity | **57.0%** | 9.0% |
+| Exact match | 0% | 0% |
+
+**Conclusion:** The scratch transformer outperforms ProtBERT v2 on every metric by a large margin. The most striking gap is in SMILES validity: 46–57% vs 7–9%. The main contributing factors are:
+
+1. **Training data volume**: the scratch transformer saw 6× more pairs (168K vs 28K). ProtBERT v2 was trained on a 1/12 subsample, which is not enough for the decoder to learn reliable SMILES generation.
+2. **Greedy decoding runoff**: ProtBERT v2's higher TF loss (~1.4 vs 0.87) reflects weaker next-token calibration — greedy decoding almost always hits the 120-token ceiling with an unclosed ring, failing RDKit validation.
+3. **Task mismatch**: ProtBERT's representations are not fine-tuned for drug generation (encoder is frozen), so the decoder must bridge a larger representational gap.
+
+The scratch transformer result suggests that training data volume matters more than encoder quality at this scale under greedy decoding. ProtBERT v2 would likely close the gap with more training data and nucleus or beam-search decoding.
+
 ---
 
 ## Potential next steps
