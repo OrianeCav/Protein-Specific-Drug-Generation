@@ -50,7 +50,7 @@ SMILES validity measures the fraction of generated sequences that parse as chemi
 
 **Qualitative observations:** The model generates drug-like scaffolds such as biaryl amides, piperidine/piperazine-containing compounds, and heteroaromatic kinase inhibitor-like structures. Remaining failure modes include occasional degenerate outputs (long alkane chains) and mode collapse under greedy decoding (the same scaffold generated for multiple different protein inputs).
 
-The training experiment is tracked at: https://wandb.ai/oriane-cavrois/protein-drug-gen
+![Transformer training loss curve](assets/transformer_training_loss.png)
 
 ### ProtBERT (encoder fine-tuning)
 
@@ -85,7 +85,7 @@ Training ran for **5 epochs** (~75 min/epoch on a T4 GPU, ~6.25h total, 439 batc
 | 4 | ~1.253 |
 | 5 | **1.253** |
 
-V1 (d_ff=48) plateau: ~2.54 across all epochs.
+![ProtBERT v2 training loss](assets/prot_bert_v2_training_loss.png)
 
 **Qualitative inference results (greedy decoding, 5 test examples):**
 
